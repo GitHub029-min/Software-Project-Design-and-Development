@@ -1,4 +1,4 @@
-:root{--bottle:#1F4D3A;--mist:#E8EEE2;--peat:#1E2A22;--bloom:#459dc9;--petal:#F6D5E1;--moss:#CFE0C8;--display:'Bricolage Grotesque',Georgia,sans-serif}
+:root{--bottle:#1F4D3A;--mist:#E8EEE2;--peat:#1E2A22;--bloom:#C9457A;--petal:#F6D5E1;--moss:#CFE0C8;--display:'Bricolage Grotesque',Georgia,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--mist);color:var(--peat);font:16px/1.55 'Figtree',system-ui,sans-serif}
 h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-.02em;margin:.2em 0}h2{font-size:2rem}h3{font-size:1.15rem}
 header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;max-width:1040px;margin:14px auto 0;padding:8px 10px 8px 24px;background:var(--bottle);color:#fff;border-radius:999px;position:sticky;top:10px;z-index:5}
@@ -53,3 +53,16 @@ footer button{display:block;background:none;border:0;color:#fff;padding:4px 0;bo
 [hidden]{display:none!important}
 .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}.tabs button.on{background:var(--bottle);color:#fff;border-color:var(--bottle)}
 #q{min-width:240px}
+#hint{margin:6px 0;color:#4a5a4f}
+#cats{grid-template-columns:repeat(6,1fr);gap:32px 24px}
+#cats .card{grid-column:span 2}#cats .card:nth-child(4){grid-column:2/4}#cats .card:nth-child(5){grid-column:4/6}
+#cats .arch{aspect-ratio:5/6}
+@media(max-width:760px){#cats{grid-template-columns:1fr 1fr}#cats .card,#cats .card:nth-child(4),#cats .card:nth-child(5){grid-column:auto}}
+#prods.feat{grid-template-columns:repeat(6,1fr);gap:32px 24px}
+#prods.feat .card{grid-column:span 2}#prods.feat .card:nth-child(4){grid-column:2/4}#prods.feat .card:nth-child(5){grid-column:4/6}
+#prods.feat .arch{aspect-ratio:5/6}
+@media(max-width:760px){#prods.feat{grid-template-columns:1fr 1fr}#prods.feat .card,#prods.feat .card:nth-child(4),#prods.feat .card:nth-child(5){grid-column:auto}}
+textarea{font:inherit;padding:10px 16px;border:1.5px solid #b7c7ae;border-radius:12px;background:#fff;color:var(--peat);width:100%;resize:vertical}
+.checkout{max-width:460px;margin-top:16px}
+.rcpt{max-width:620px;margin:0 auto;gap:14px}.cod{background:var(--petal);color:#6d1a3a;border-radius:12px;padding:10px 14px;margin:0}
+@media print{header,footer,#toast,.noprint{display:none!important}main>section:not(#receipt){display:none!important}body,body.bgpic{background:#fff}}
