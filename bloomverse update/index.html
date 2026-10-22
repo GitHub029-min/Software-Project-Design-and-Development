@@ -11,31 +11,9 @@
 <button class="pri" data-p="shop">Explore now</button> <button data-p="doctor">Learn how it works</button></div>
 <div class="hero-art"><div class="arch big"><img src="images/hero.jpg" alt="" onerror="this.remove()"></div><div class="arch dot"><img src="images/hero2.jpg" alt="" onerror="this.remove()"></div></div></div>
 <div class="grid" id="cats"></div></section>
-<section id="shop" hidden><h2>Shop</h2><div class="bar"><input id="q" placeholder="Search plants, seeds, tools">
-<select id="cat"><option value="">All sections</option><option>Plants</option><option>Seeds</option><option>Fertilizers</option><option>Tools</option></select>
-<label><input type="checkbox" id="eco"> Eco-certified</label><button id="go">Search</button></div>
-<div class="grid" id="prods"></div><div id="rev" class="card" hidden></div></section>
-<section id="doctor" hidden><h2>Plant doctor</h2><p>Upload a clear photo of one leaf. Log in required.</p>
-<div class="bar"><input type="file" id="img" accept="image/jpeg,image/png"><button class="pri" id="scan">Scan leaf</button></div><div id="scanOut"></div></section>
-<section id="swap" hidden><h2>Swap hub</h2>
-<form id="swapForm" class="bar"><input name="title" placeholder="Plant you are offering" required>
-<select name="type"><option>Free adoption</option><option>Swap</option></select><select name="area" class="areas"></select><button class="pri">Create listing</button></form>
-<div class="grid" id="<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BloomVerse</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;700&family=Figtree:wght@400;500&display=swap"><link rel="stylesheet" href="style.css"></head><body>
-<header><h1 data-p="home">BloomVerse</h1>
-<nav><button data-p="shop">Shop</button><button data-p="doctor">Plant doctor</button><button data-p="swap">Swap hub</button>
-<button data-p="route" id="nRoute" hidden>Green route</button><button data-p="admin" id="nAdmin" hidden>Admin</button>
-<button data-p="cart">Cart <b id="cnt">0</b></button><button data-p="auth" id="nAuth">Log in</button></nav></header>
-<main>
-<section id="home"><div class="hero"><div><h2>Everything your plants need, in one place</h2>
-<p>Buy supplies, diagnose a sick leaf, adopt or swap plants, and get greener deliveries.</p>
-<button class="pri" data-p="shop">Explore now</button> <button data-p="doctor">Learn how it works</button></div>
-<div class="hero-art"><div class="arch big"><img src="images/hero.jpg" alt="" onerror="this.remove()"></div><div class="arch dot"><img src="images/hero2.jpg" alt="" onerror="this.remove()"></div></div></div>
-<div class="grid" id="cats"></div></section>
-<section id="shop" hidden><h2>Shop</h2><div class="tabs" id="tabs"><button data-c="">All</button><button data-c="Plants">Plants</button><button data-c="Seeds">Seeds</button><button data-c="Fertilizers">Fertilizers</button><button data-c="Flowers">Flowers</button><button data-c="Tools">Tools</button></div><div class="bar"><input id="q" placeholder="Search plants, seeds, tools">
+<section id="shop" hidden><h2>Shop</h2><div class="tabs" id="tabs"><button data-c="">All</button><button data-c="Plants">Plants</button><button data-c="Flowers">Flowers</button><button data-c="Seeds">Seeds</button><button data-c="Fertilizers">Fertilizers</button><button data-c="Tools">Tools</button></div><p id="hint"></p><div class="bar"><input id="q" placeholder="Search plants, seeds, tools">
 <input type="hidden" id="cat" value="">
-<label><input type="checkbox" id="eco"> Eco-certified</label><button id="go">Search</button></div>
+<button id="go">Search</button></div>
 <div class="grid" id="prods"></div><div id="rev" class="card" hidden></div></section>
 <section id="doctor" hidden><h2>Plant doctor</h2><p>Upload a clear photo of one leaf. Log in required.</p>
 <div class="bar"><input type="file" id="img" accept="image/jpeg,image/png"><button class="pri" id="scan">Scan leaf</button></div><div id="scanOut"></div></section>
@@ -45,6 +23,7 @@
 <div class="grid" id="swaps"></div></section>
 <section id="route" hidden><h2>Green route</h2><div id="routeOut"></div></section>
 <section id="cart" hidden><h2>Your cart</h2><div id="cartOut"></div><div id="myOrders"></div></section>
+<section id="receipt" hidden></section>
 <section id="auth" hidden><div class="auth-stage">
 <i class="pet p1"></i><i class="pet p2"></i><i class="pet p3"></i><i class="pet p4"></i>
 <svg class="plant" viewBox="0 0 200 240" role="img" aria-label="A cute potted plant"><g class="bob">
@@ -64,26 +43,4 @@
 <footer><div class="foot"><div><h3>BloomVerse</h3><p>Plants, advice and greener deliveries, all in one place.</p></div>
 <div><h4>Explore</h4><button data-p="shop">Shop</button><button data-p="doctor">Plant doctor</button><button data-p="swap">Swap hub</button></div>
 <div><h4>Account</h4><button data-p="auth">Log in / Sign up</button><button data-p="cart">Your cart</button></div></div>
-<p class="copy">&copy; 2026 BloomVerse. Grow something good.</p></footer><div id="toast" hidden></div><script src="app.js"></script></body></html>swaps"></div></section>
-<section id="route" hidden><h2>Green route</h2><div id="routeOut"></div></section>
-<section id="cart" hidden><h2>Your cart</h2><div id="cartOut"></div><div id="myOrders"></div></section>
-<section id="auth" hidden><div class="auth-stage">
-<i class="pet p1"></i><i class="pet p2"></i><i class="pet p3"></i><i class="pet p4"></i>
-<svg class="plant" viewBox="0 0 200 240" role="img" aria-label="A cute potted plant"><g class="bob">
-<g class="sway"><path d="M100 118C60 108 38 66 54 32C90 42 106 78 100 118Z" fill="#3E8E5A"/><path d="M100 118C140 103 166 66 150 28C112 42 95 78 100 118Z" fill="#2F7A4A"/><path d="M100 118C90 86 97 60 100 44C103 60 110 86 100 118Z" fill="#5FB478"/></g>
-<path d="M45 132H155L142 215Q141 225 130 225H70Q59 225 58 215Z" fill="#C9457A"/><rect x="38" y="120" width="124" height="20" rx="10" fill="#B03868"/>
-<g class="eyes"><circle cx="80" cy="170" r="7" fill="#1E2A22"/><circle cx="120" cy="170" r="7" fill="#1E2A22"/><circle cx="82.5" cy="167" r="2.3" fill="#fff"/><circle cx="122.5" cy="167" r="2.3" fill="#fff"/></g>
-<ellipse cx="66" cy="186" rx="9" ry="5" fill="#F6D5E1"/><ellipse cx="134" cy="186" rx="9" ry="5" fill="#F6D5E1"/>
-<path d="M92 184Q100 193 108 184" stroke="#1E2A22" stroke-width="3" fill="none" stroke-linecap="round"/>
-<ellipse class="hl" cx="58" cy="200" rx="14" ry="10" fill="#3E8E5A"/><ellipse class="hr" cx="142" cy="200" rx="14" ry="10" fill="#3E8E5A"/></g></svg>
-<div class="flip"><div class="flip-in">
-<form id="loginForm" class="face"><h3>Welcome back</h3><input name="email" type="email" placeholder="name@email.com" required aria-label="Email"><input name="password" type="password" placeholder="Password" required aria-label="Password"><button class="pri">Log in</button><button type="button" class="link" id="toSign">New here? Create an account</button></form>
-<form id="regForm" class="face back"><h3>Join BloomVerse</h3><input name="name" placeholder="Full name" required aria-label="Full name"><input name="email" type="email" placeholder="name@email.com" required aria-label="Email"><input name="password" type="password" placeholder="6+ characters" required aria-label="Password"><button class="pri">Sign up</button><button type="button" class="link" id="toLog">Have an account? Log in</button></form>
-</div></div></div>
-<button id="logout" hidden>Log out</button></section>
-<section id="admin" hidden><h2>Admin dashboard</h2><div id="adminOut"></div></section>
-</main>
-<footer><div class="foot"><div><h3>BloomVerse</h3><p>Plants, advice and greener deliveries, all in one place.</p></div>
-<div><h4>Explore</h4><button data-p="shop">Shop</button><button data-p="doctor">Plant doctor</button><button data-p="swap">Swap hub</button></div>
-<div><h4>Account</h4><button data-p="auth">Log in / Sign up</button><button data-p="cart">Your cart</button></div></div>
-<p class="copy">&copy; 2026 BloomVerse. Grow something good.</p></footer><div id="toast" hidden></div><script src="app.js"></script></body></html>
+<p class="copy">&copy; 2026 BloomVerse. Grow something good.</p></footer><div id="toast" hidden></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><script src="app.js"></script></body></html>
