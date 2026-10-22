@@ -1,5 +1,8 @@
 <?php
 session_start(); header('Content-Type: application/json');
+$o=$_SERVER['HTTP_ORIGIN']??'';if(preg_match('#^http://(localhost|127\.0\.0\.1):\d+$#',$o)){header('Access-Control-Allow-Origin: '.$o);header('Access-Control-Allow-Credentials: true');}
+if(($_SERVER['REQUEST_METHOD']??'')=='OPTIONS')exit;
+set_exception_handler(function($e){http_response_code(500);echo json_encode(['error'=>$e->getMessage()]);});
 $db=new PDO('mysql:host=localhost;dbname=bloomverse;charset=utf8mb4','root','',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
 function q($sql,$p=[]){global $db;$s=$db->prepare($sql);$s->execute($p);return $s;}
 function out($d){echo json_encode($d);exit;}
@@ -31,15 +34,17 @@ case 'review':
  q("INSERT INTO reviews(product_id,user_id,rating,comment) VALUES(?,?,?,?)",[$in['id'],$u['id'],max(1,min(5,(int)$in['rating'])),substr($in['comment'],0,300)]);out(['ok'=>1]);
 case 'flag': need();q("UPDATE reviews SET flagged=1 WHERE id=?",[$in['id']]);out(['ok'=>1]);
 case 'order':
- need();$db->beginTransaction();$t=0;
- q("INSERT INTO orders(user_id,area,lat,lng,total) VALUES(?,?,?,?,0)",[$u['id'],$in['area'],$in['lat'],$in['lng']]);$oid=$db->lastInsertId();
+ need();$nm=trim($in['name']??'');$ph=preg_replace('/[\s-]/','',$in['phone']??'');$ad=trim($in['address']??'');
+ if($nm===''||!preg_match('/^(\+?88)?01\d{9}$/',$ph)||strlen($ad)<10)out(['error'=>'Enter your name, a valid phone number (01XXXXXXXXX) and your full address']);
+ $db->beginTransaction();$t=0;
+ q("INSERT INTO orders(user_id,cust_name,phone,address,area,lat,lng,total) VALUES(?,?,?,?,?,?,?,0)",[$u['id'],$nm,$ph,$ad,$in['area'],$in['lat'],$in['lng']]);$oid=$db->lastInsertId();
  foreach($in['items'] as $i){
   $p=q("SELECT * FROM products WHERE id=? FOR UPDATE",[$i['id']])->fetch();$n=max(1,(int)$i['qty']);
   if(!$p||$p['stock']<$n){$db->rollBack();out(['error'=>'Not enough stock for '.($p['name']??'item')]);}
   q("UPDATE products SET stock=stock-? WHERE id=?",[$n,$p['id']]);
   q("INSERT INTO order_items VALUES(?,?,?,?)",[$oid,$p['id'],$n,$p['price']]);$t+=$n*$p['price'];}
  q("UPDATE orders SET total=? WHERE id=?",[$t,$oid]);$db->commit();out(['ok'=>1,'id'=>$oid,'total'=>$t]);
-case 'myorders': need();out(q("SELECT id,area,total,status,created FROM orders WHERE user_id=? ORDER BY id DESC",[$u['id']])->fetchAll());
+case 'myorders': need();out(q("SELECT id,cust_name,phone,address,area,total,status,created FROM orders WHERE user_id=? ORDER BY id DESC",[$u['id']])->fetchAll());
 case 'swaps': out(q("SELECT s.*,u.name owner,(SELECT COUNT(*) FROM swap_interests i WHERE i.post_id=s.id) interested FROM swap_posts s JOIN users u ON u.id=s.user_id ORDER BY s.id DESC")->fetchAll());
 case 'swap_add': need();q("INSERT INTO swap_posts(user_id,title,type,area) VALUES(?,?,?,?)",[$u['id'],$in['title'],$in['type']=='Swap'?'Swap':'Free adoption',$in['area']]);out(['ok'=>1]);
 case 'swap_interest': need();q("INSERT IGNORE INTO swap_interests VALUES(?,?)",[$in['id'],$u['id']]);out(['ok'=>1]);
@@ -55,12 +60,12 @@ case 'scan':
  else{$is='Dark spots: possible fungal infection';$rem='Remove affected leaves and spray neem oil solution.';}
  q("INSERT INTO health_logs(user_id,health_index,issue) VALUES(?,?,?)",[$u['id'],$idx,$is]);
  out(['index'=>$idx,'issue'=>$is,'remedy'=>$rem,'history'=>q("SELECT health_index,issue,created FROM health_logs WHERE user_id=? ORDER BY id DESC LIMIT 5",[$u['id']])->fetchAll()]);
-case 'route': need('rider');out(q("SELECT id,area,lat,lng,status FROM orders WHERE rider_id=? AND status!='Delivered'",[$u['id']])->fetchAll());
+case 'route': need('rider');out(q("SELECT id,cust_name,phone,address,area,lat,lng,status FROM orders WHERE rider_id=? AND status!='Delivered'",[$u['id']])->fetchAll());
 case 'deliver': need('rider');q("UPDATE orders SET status=? WHERE id=? AND rider_id=?",[$in['status']=='Delivered'?'Delivered':'Out for delivery',$in['id'],$u['id']]);out(['ok'=>1]);
 case 'admin':
  need('admin');
  out(['stats'=>q("SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM orders) orders,(SELECT IFNULL(SUM(total),0) FROM orders) revenue,(SELECT COUNT(*) FROM swap_posts) swaps")->fetch(),
- 'orders'=>q("SELECT o.id,u.name,o.area,o.total,o.status,o.rider_id FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 20")->fetchAll(),
+ 'orders'=>q("SELECT o.id,o.cust_name,o.phone,o.address,o.area,o.total,o.status,o.rider_id FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 20")->fetchAll(),
  'riders'=>q("SELECT id,name FROM users WHERE role='rider'")->fetchAll(),
  'flagged'=>q("SELECT id,comment FROM reviews WHERE flagged=1")->fetchAll(),
  'products'=>q("SELECT id,name,eco FROM products")->fetchAll()]);
