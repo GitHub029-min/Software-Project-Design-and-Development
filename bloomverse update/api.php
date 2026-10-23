@@ -45,21 +45,45 @@ case 'order':
   q("INSERT INTO order_items VALUES(?,?,?,?)",[$oid,$p['id'],$n,$p['price']]);$t+=$n*$p['price'];}
  q("UPDATE orders SET total=? WHERE id=?",[$t,$oid]);$db->commit();out(['ok'=>1,'id'=>$oid,'total'=>$t]);
 case 'myorders': need();out(q("SELECT id,cust_name,phone,address,area,total,status,created FROM orders WHERE user_id=? ORDER BY id DESC",[$u['id']])->fetchAll());
-case 'swaps': out(q("SELECT s.*,u.name owner,(SELECT COUNT(*) FROM swap_interests i WHERE i.post_id=s.id) interested FROM swap_posts s JOIN users u ON u.id=s.user_id ORDER BY s.id DESC")->fetchAll());
-case 'swap_add': need();q("INSERT INTO swap_posts(user_id,title,type,area) VALUES(?,?,?,?)",[$u['id'],$in['title'],$in['type']=='Swap'?'Swap':'Free adoption',$in['area']]);out(['ok'=>1]);
+case 'swaps': out(q("SELECT s.id,s.user_id,s.title,s.type,s.area,(s.photo IS NOT NULL) has_photo,u.name owner,(SELECT COUNT(*) FROM swap_interests i WHERE i.post_id=s.id) interested FROM swap_posts s JOIN users u ON u.id=s.user_id ORDER BY s.id DESC")->fetchAll());
+case 'swap_add':
+ need();$ph=null;$f=$_FILES['photo']??null;
+ if(trim($in['title']??'')==='')out(['error'=>'Enter the plant name']);
+ if($f&&$f['error']!==UPLOAD_ERR_NO_FILE){
+  if(!function_exists('imagecreatefromstring'))out(['error'=>'PHP GD extension is off. Enable extension=gd in php.ini and restart Apache.']);
+  if($f['error']||$f['size']>12e6||!in_array(@getimagesize($f['tmp_name'])['mime']??'',['image/jpeg','image/png']))out(['error'=>'Upload a JPG or PNG photo under 12MB.']);
+  $im=imagecreatefromstring(file_get_contents($f['tmp_name']));$im=imagescale($im,min(700,imagesx($im)));ob_start();imagejpeg($im,null,72);$ph=base64_encode(ob_get_clean());}
+ q("INSERT INTO swap_posts(user_id,title,type,area,photo) VALUES(?,?,?,?,?)",[$u['id'],substr(trim($in['title']),0,100),($in['type']??'')=='Swap'?'Swap':'Free adoption',$in['area']??'',$ph]);out(['ok'=>1]);
+case 'swap_img':
+ $r=q("SELECT photo FROM swap_posts WHERE id=?",[$_GET['id']??0])->fetch();
+ if(!$r||!$r['photo']){http_response_code(404);exit;}
+ header('Content-Type: image/jpeg');header('Cache-Control: public, max-age=86400');echo base64_decode($r['photo']);exit;
+case 'swap_del':
+ need();$r=q("SELECT user_id FROM swap_posts WHERE id=?",[$in['id']??0])->fetch();
+ if(!$r||($r['user_id']!=$u['id']&&$u['role']!='admin'))out(['error'=>'You can only remove your own listings']);
+ q("DELETE FROM swap_interests WHERE post_id=?",[$in['id']]);q("DELETE FROM swap_posts WHERE id=?",[$in['id']]);out(['ok'=>1]);
 case 'swap_interest': need();q("INSERT IGNORE INTO swap_interests VALUES(?,?)",[$in['id'],$u['id']]);out(['ok'=>1]);
 case 'scan':
  need();$f=$_FILES['img']??null;
- if(!$f||$f['error']||$f['size']>4e6||!in_array(@getimagesize($f['tmp_name'])['mime']??'',['image/jpeg','image/png']))out(['error'=>'Upload a JPG or PNG under 4MB']);
- $im=imagescale(imagecreatefromstring(file_get_contents($f['tmp_name'])),50,50);$g=$y=$d=0;
- for($x=0;$x<50;$x++)for($z=0;$z<50;$z++){$c=imagecolorat($im,$x,$z);$r=($c>>16)&255;$gr=($c>>8)&255;$b=$c&255;
-  if($r+$gr+$b<150)$d++;elseif($gr>$r&&$gr>$b)$g++;elseif($r>$b+30&&$gr>$b)$y++;}
- $idx=(int)round(100*$g/max(1,$g+$y+$d));
- if($idx>=70){$is='Looks healthy';$rem='Keep the current watering routine.';}
- elseif($y>$d){$is='Yellowing leaves: possible overwatering or nutrient deficiency';$rem='Water less often and add vermicompost.';}
- else{$is='Dark spots: possible fungal infection';$rem='Remove affected leaves and spray neem oil solution.';}
+ if(!function_exists('imagecreatefromstring'))out(['error'=>'PHP GD extension is off. In XAMPP open php.ini, remove the ; before extension=gd, then restart Apache.']);
+ if(!$f||$f['error']||$f['size']>8e6||!in_array(@getimagesize($f['tmp_name'])['mime']??'',['image/jpeg','image/png']))out(['error'=>'Upload a JPG or PNG photo under 8MB.']);
+ $im=imagescale(imagecreatefromstring(file_get_contents($f['tmp_name'])),80,80);$g=$y=$b=$d=$n=0;
+ for($x=16;$x<64;$x++)for($z=16;$z<64;$z++){
+  $c=imagecolorat($im,$x,$z);$r=($c>>16)&255;$gr=($c>>8)&255;$bl=$c&255;$mx=max($r,$gr,$bl);$mn=min($r,$gr,$bl);$v=$mx/255;$s=$mx?($mx-$mn)/$mx:0;
+  if($v<0.18){$d++;$n++;continue;}
+  if($s<0.12){if($v<0.35){$d++;$n++;}continue;}
+  if($mx==$r)$h=60*fmod(($gr-$bl)/($mx-$mn),6);elseif($mx==$gr)$h=60*(($bl-$r)/($mx-$mn)+2);else $h=60*(($r-$gr)/($mx-$mn)+4);
+  if($h<0)$h+=360;$n++;
+  if($h>=70&&$h<=170)$g++;elseif($h>=38&&$h<70)$y++;else $b++;}
+ $n=max(1,$n);$gp=$g/$n;$yp=$y/$n;$bp=$b/$n;$dp=$d/$n;$idx=(int)round(100*($g+0.4*$y)/$n);
+ if($bp+$dp>=.3){$is='Leaf burn or dying tissue: large brown or dark patches';$st=['Trim the badly damaged leaves with clean scissors.','Check the cause: strong afternoon sun, too little water, or soggy soil.','Move the plant to bright indirect light and water only when the top 2 cm of soil is dry.','If the patches keep spreading, spray neem oil and repot in fresh, well-draining soil.'];}
+ elseif($bp>=.05&&($yp>=.12||$dp>=.02)){$is='Leaf spot disease (fungal or bacterial): brown spots with yellowing';$st=['Pick off and bin the spotted leaves. Do not put them in compost.','Water the soil, not the leaves, and do it in the morning.','Spray neem oil solution (or a copper fungicide) every 7 days for 3 weeks.','Give the plant more space and airflow, and keep fallen leaves away from the pot.'];}
+ elseif($yp>=.35){$is='Yellowing leaves: overwatering, low nutrients or too little light';$st=['Feel the soil. If it is wet, stop watering until the top layer dries.','Make sure the pot has drainage holes.','Add vermicompost or a balanced NPK fertilizer once a month.','Move the plant to bright, indirect light.'];}
+ elseif($idx>=70){$is='Looks healthy';$st=['Keep your current watering routine.','Wipe dust off the leaves now and then.','Feed lightly once a month in the growing season.'];}
+ else{$is='Mild leaf stress: some discolouration';$st=['Check soil moisture and light first.','Remove any fully yellow or dry leaves.','Take another photo in a week to see if it changes.'];}
  q("INSERT INTO health_logs(user_id,health_index,issue) VALUES(?,?,?)",[$u['id'],$idx,$is]);
- out(['index'=>$idx,'issue'=>$is,'remedy'=>$rem,'history'=>q("SELECT health_index,issue,created FROM health_logs WHERE user_id=? ORDER BY id DESC LIMIT 5",[$u['id']])->fetchAll()]);
+ out(['index'=>$idx,'issue'=>$is,'steps'=>$st,'mix'=>['green'=>round($gp*100),'yellow'=>round($yp*100),'brown'=>round(($bp+$dp)*100)],'history'=>q("SELECT health_index,issue,created FROM health_logs WHERE user_id=? ORDER BY id DESC LIMIT 5",[$u['id']])->fetchAll()]);
+case 'scans': need();out(q("SELECT health_index,issue,created FROM health_logs WHERE user_id=? ORDER BY id DESC LIMIT 10",[$u['id']])->fetchAll());
 case 'route': need('rider');out(q("SELECT id,cust_name,phone,address,area,lat,lng,status FROM orders WHERE rider_id=? AND status!='Delivered'",[$u['id']])->fetchAll());
 case 'deliver': need('rider');q("UPDATE orders SET status=? WHERE id=? AND rider_id=?",[$in['status']=='Delivered'?'Delivered':'Out for delivery',$in['id'],$u['id']]);out(['ok'=>1]);
 case 'admin':
