@@ -1,6 +1,10 @@
 <?php
+session_set_cookie_params(["httponly" => true, "samesite" => "Lax"]);
 session_start();
 header("Content-Type: application/json");
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("Referrer-Policy: same-origin");
 $o = $_SERVER["HTTP_ORIGIN"] ?? "";
 if (preg_match('#^http://(localhost|127\.0\.0\.1):\d+$#', $o)) {
     header("Access-Control-Allow-Origin: " . $o);
@@ -10,13 +14,18 @@ if (($_SERVER["REQUEST_METHOD"] ?? "") == "OPTIONS") {
     exit();
 }
 set_exception_handler(function ($e) {
+    error_log("BloomVerse: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(["error" => $e->getMessage()]);
+    echo json_encode(["error" => "Server error. Please try again."]);
 });
 $db = new PDO(
-    "mysql:host=localhost;dbname=bloomverse;charset=utf8mb4",
-    "root",
-    "",
+    "mysql:host=" .
+        (getenv("BV_DB_HOST") ?: "localhost") .
+        ";dbname=" .
+        (getenv("BV_DB") ?: "bloomverse") .
+        ";charset=utf8mb4",
+    getenv("BV_DB_USER") ?: "root",
+    getenv("BV_DB_PASS") ?: "",
     [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -61,6 +70,34 @@ function pimg_save($f, $id)
     }
     return @imagejpeg($im, $dir . "/p" . $id . ".jpg", 82);
 }
+function pvalid($in)
+{
+    if (trim($in["name"] ?? "") === "") {
+        return "Enter the product name";
+    }
+    if (
+        !in_array($in["category"] ?? "", [
+            "Plants",
+            "Seeds",
+            "Fertilizers",
+            "Flowers",
+            "Tools",
+        ])
+    ) {
+        return "Choose a valid category";
+    }
+    if (!is_numeric($in["price"] ?? null) || $in["price"] < 0) {
+        return "Price must be a number, 0 or more";
+    }
+    if (
+        !is_numeric($in["stock"] ?? null) ||
+        $in["stock"] < 0 ||
+        (int) $in["stock"] != $in["stock"]
+    ) {
+        return "Stock must be a whole number, 0 or more";
+    }
+    return null;
+}
 function need($role = null)
 {
     global $u;
@@ -69,20 +106,24 @@ function need($role = null)
         out(["error" => "Login with the right account first"]);
     }
 }
-if (!q("SHOW COLUMNS FROM users LIKE 'on_shift'")->fetch()) {
-    q("ALTER TABLE users ADD on_shift TINYINT DEFAULT 0");
-}
-if (!q("SHOW COLUMNS FROM orders LIKE 'delivered_at'")->fetch()) {
-    q("ALTER TABLE orders ADD delivered_at DATETIME NULL");
-}
-if (!q("SHOW COLUMNS FROM products LIKE 'active'")->fetch()) {
-    q("ALTER TABLE products ADD active TINYINT DEFAULT 1");
-}
-if (!q("SELECT 1 FROM users WHERE role='admin'")->fetch()) {
-    q(
-        "INSERT INTO users(name,email,password,role) VALUES('Admin','admin@bloomverse.com',?,'admin')",
-        [password_hash("admin123", PASSWORD_DEFAULT)]
-    );
+if (empty($_SESSION["setup"])) {
+    // one-time database checks, once per browser session instead of on every request
+    if (!q("SHOW COLUMNS FROM users LIKE 'on_shift'")->fetch()) {
+        q("ALTER TABLE users ADD on_shift TINYINT DEFAULT 0");
+    }
+    if (!q("SHOW COLUMNS FROM orders LIKE 'delivered_at'")->fetch()) {
+        q("ALTER TABLE orders ADD delivered_at DATETIME NULL");
+    }
+    if (!q("SHOW COLUMNS FROM products LIKE 'active'")->fetch()) {
+        q("ALTER TABLE products ADD active TINYINT DEFAULT 1");
+    }
+    if (!q("SELECT 1 FROM users WHERE role='admin'")->fetch()) {
+        q(
+            "INSERT INTO users(name,email,password,role) VALUES('Admin','admin@bloomverse.com',?,'admin')",
+            [password_hash("admin123", PASSWORD_DEFAULT)]
+        );
+    }
+    $_SESSION["setup"] = 1;
 }
 $a = $_GET["action"] ?? "";
 $in = json_decode(file_get_contents("php://input"), true) ?? $_POST;
@@ -100,6 +141,12 @@ if ($u) {
 }
 switch ($a) {
     case "register":
+        if (trim($in["name"] ?? "") === "") {
+            out(["error" => "Enter your name"]);
+        }
+        if (!filter_var($in["email"] ?? "", FILTER_VALIDATE_EMAIL)) {
+            out(["error" => "Enter a valid email address"]);
+        }
         if (strlen($in["password"] ?? "") < 6) {
             out(["error" => "Password needs 6+ characters"]);
         }
@@ -200,6 +247,9 @@ switch ($a) {
                 "error" =>
                     "Enter your name, a valid phone number (01XXXXXXXXX) and your full address",
             ]);
+        }
+        if (empty($in["items"]) || !is_array($in["items"])) {
+            out(["error" => "Your cart is empty"]);
         }
         $db->beginTransaction();
         $t = 0;
@@ -526,6 +576,19 @@ switch ($a) {
         ]);
     case "a_assign":
         need("admin");
+        if (
+            !q("SELECT 1 FROM users WHERE id=? AND role='rider'", [
+                $in["rider"] ?? 0,
+            ])->fetch()
+        ) {
+            out(["error" => "Choose a valid rider"]);
+        }
+        $od = q("SELECT status FROM orders WHERE id=?", [
+            $in["id"] ?? 0,
+        ])->fetch();
+        if (!$od || $od["status"] == "Delivered") {
+            out(["error" => "Order not found or already delivered"]);
+        }
         q("UPDATE orders SET rider_id=?,status='Out for delivery' WHERE id=?", [
             $in["rider"],
             $in["id"],
@@ -554,8 +617,8 @@ switch ($a) {
         need("admin");
         $f = $_FILES["photo"] ?? null;
         $has = $f && $f["error"] !== UPLOAD_ERR_NO_FILE;
-        if (trim($in["name"] ?? "") === "") {
-            out(["error" => "Enter the product name"]);
+        if ($e = pvalid($in)) {
+            out(["error" => $e]);
         }
         if ($has && ($e = pimg_check($f))) {
             out(["error" => $e]);
@@ -582,8 +645,8 @@ switch ($a) {
         if (!q("SELECT 1 FROM products WHERE id=?", [$pid])->fetch()) {
             out(["error" => "Product not found"]);
         }
-        if (trim($in["name"] ?? "") === "") {
-            out(["error" => "Enter the product name"]);
+        if ($e = pvalid($in)) {
+            out(["error" => $e]);
         }
         if ($has && ($e = pimg_check($f))) {
             out(["error" => $e]);
