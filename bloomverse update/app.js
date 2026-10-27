@@ -34,7 +34,7 @@ const api = async (a, d, raw) => {
 	};
 	try {
 		return JSON.parse(t)
-	} catch (e) {
+	} catch {
 		return {
 			error: 'Server error: ' + t.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220)
 		}
@@ -97,7 +97,7 @@ const P = {
 		let l;
 		try {
 			l = await api('products&' + qs)
-		} catch (e) {
+		} catch {
 			l = {
 				error: 'Cannot reach api.php. Open the site at http://localhost/bloomverse/ (not by double-clicking index.html) and keep api.php in the same folder.'
 			}
@@ -446,7 +446,7 @@ async function roadRoute(pts) {
 			km: x.distance / 1000,
 			min: x.duration / 60
 		} : null
-	} catch (e) {
+	} catch {
 		return null
 	}
 }
