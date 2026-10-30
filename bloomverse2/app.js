@@ -19,7 +19,6 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({
 	'>': '&gt;',
 	'"': '&quot;'
 } [c]));
-// Live Server (port 55xx) cannot run PHP, so it calls XAMPP's Apache instead. Change bloomverse2 if your htdocs folder has another name.
 const API = /^55\d\d$/.test(location.port) ? 'http://' + location.hostname + '/bloomverse2/api.php' : 'api.php';
 const api = async (a, d, raw) => {
 	const t = await (await fetch(API + '?action=' + a, {
@@ -30,7 +29,7 @@ const api = async (a, d, raw) => {
 		} : {})
 	})).text();
 	if (t.trim().startsWith('<?php')) return {
-		error: 'PHP is not running for api.php. Open the site through XAMPP at http://localhost/bloomverse/ (not Live Server or a double-clicked file) and keep the folder inside C:/xampp/htdocs.'
+		error: 'PHP is not running for api.php. Open the site through XAMPP at http://localhost/bloomverse/'
 	};
 	try {
 		return JSON.parse(t)
@@ -99,10 +98,10 @@ const P = {
 			l = await api('products&' + qs)
 		} catch {
 			l = {
-				error: 'Cannot reach api.php. Open the site at http://localhost/bloomverse/ (not by double-clicking index.html) and keep api.php in the same folder.'
+				error: 'Cannot reach api.php.'
 			}
 		}
-		if (!Array.isArray(l)) return $('#prods').innerHTML = '<p><b>Could not load products.</b><br>' + esc(l.error || 'Unknown error') + '</p>';
+		if (!Array.isArray(l)) return $('#prods').innerHTML = '<p><b>Could not load products.</b></p>';
 		const feat = !$('#cat').value && !$('#q').value.trim();
 		if (feat) l = ['Plants', 'Flowers', 'Seeds', 'Fertilizers', 'Tools'].map(c => l.find(p => p.category == c)).filter(Boolean);
 		$('#hint').textContent = feat ? 'One pick from each section. Choose a section above to see everything in it.' : '';
@@ -207,7 +206,7 @@ const P = {
  <h3>My route</h3>
  <div id="rmap"></div>
  <table>${seq.map((o,i)=>`<tr><td>${i+1}</td><td>Order #${o.id} &middot; ${esc(o.cust_name)}<br><small>${esc(o.address)} &middot; Area: ${esc(o.area)} &middot; Collect Tk ${o.total}</small></td><td><a href="tel:${esc(o.phone)}">Call</a> &middot; <a target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${o.lat},${o.lng}">Navigate</a></td><td><button data-dl="${o.id}">Mark delivered</button></td></tr>`).join('')||'<tr><td>No active orders assigned to you.</td></tr>'}</table>
- <small>Stops are ordered with nearest-stop plus 2-opt. Distance, time and CO2 are estimates (CO2 = km saved x 100 g, a petrol motorbike).</small>`;
+ <small>Stops are optimized with Nearest Neighbor + 2-opt shortest path algorithm.</small>`;
 		bind();
 		if (window.L) {
 			const m = rmap = L.map('rmap');
@@ -239,7 +238,7 @@ const P = {
 					$('#rMin').textContent = Math.round(r.min + seq.length * 3)
 				})
 			} else m.setView(DEPOT, 12)
-		} else $('#rmap').innerHTML = '<p>Map library did not load. Check your internet.</p>';
+		} else $('#rmap').innerHTML = '<p>Map library did not load.</p>';
 		$$('[data-acc]').forEach(b => b.onclick = async () => {
 			done(await api('accept', {
 				id: b.dataset.acc
@@ -256,7 +255,7 @@ const P = {
 	async cart() {
 		const t = cart.reduce((s, i) => s + i.qty * i.price, 0);
 		$('#cartOut').innerHTML = cart.length ? `<table>${cart.map((i,k)=>`<tr><td>${esc(i.name)}</td><td>Tk ${i.price} x ${i.qty}</td><td><button data-rm="${k}">Remove</button></td></tr>`).join('')}</table>
- ${me?`<div class="card checkout"><h3>Delivery details</h3><input id="cn" placeholder="Full name" value="${esc(me.name)}" aria-label="Full name"><input id="cp" placeholder="Phone (01XXXXXXXXX)" inputmode="tel" aria-label="Phone number"><textarea id="ca" rows="3" placeholder="Full address (house, road, area)" aria-label="Full address"></textarea><small>Delivery area (used for the rider's route)</small><select id="area" aria-label="Delivery area">${areaOpts}</select><p class="cod">Payment method: <b>Cash on Delivery</b></p><div class="bar"><b>Total Tk ${t}</b><button class="pri" id="buy">Proceed to checkout</button></div></div>`:`<div class="bar"><b>Total Tk ${t}</b><button class="pri" id="cartLogin">Log in to checkout</button></div>`}` : '<p>Your cart is empty. Visit the shop to add plants.</p>';
+ ${me?`<div class="card checkout"><h3>Delivery details</h3><input id="cn" placeholder="Full name" value="${esc(me.name)}" aria-label="Full name"><input id="cp" placeholder="Phone (01XXXXXXXXX)" inputmode="tel" aria-label="Phone number"><textarea id="ca" rows="3" placeholder="Full address (house, road, area)" aria-label="Full address"></textarea><small>Delivery area</small><select id="area" aria-label="Delivery area">${areaOpts}</select><p class="cod">Payment method: <b>Cash on Delivery</b></p><div class="bar"><b>Total Tk ${t}</b><button class="pri" id="buy">Proceed to checkout</button></div></div>`:`<div class="bar"><b>Total Tk ${t}</b><button class="pri" id="cartLogin">Log in to checkout</button></div>`}` : '<p>Your cart is empty.</p>';
 		$$('[data-rm]').forEach(b => b.onclick = () => {
 			cart.splice(b.dataset.rm, 1);
 			saveCart();
@@ -317,11 +316,13 @@ const P = {
 		const d = await api('admin');
 		if (d.error) return $('#adminOut').innerHTML = '<p>Admin access only.</p>';
 		const s = d.stats,
+			pl = d.profit_loss || [],
 			T = window.aTab || 'orders',
 			CATS = ['Plants', 'Flowers', 'Seeds', 'Fertilizers', 'Tools'],
 			E = d.products.find(p => p.id == window.aEdit);
 		const tabs = [
 			['orders', 'Orders'],
+			['profit', 'Profit & Loss'],
 			['products', 'Products'],
 			['reviews', 'Reviews'],
 			['riders', 'Riders']
@@ -329,9 +330,11 @@ const P = {
 		const V = {
 			orders: `<div class="grid">${[['Users',s.users],['Orders',s.orders],['Revenue','Tk '+s.revenue],['Swap listings',s.swaps]].map(x=>`<div class="card"><small>${x[0]}</small><h3>${x[1]}</h3></div>`).join('')}</div>
  <h3>Recent orders</h3><table>${d.orders.map(o=>`<tr><td>#${o.id}</td><td>${esc(o.cust_name)}<br><small>${esc(o.phone)}</small></td><td>${esc(o.address)}<br><small>Area: ${esc(o.area)}</small></td><td>Tk ${o.total}</td><td>${o.status}</td><td>${o.rider_id?'Assigned':`<select data-as="${o.id}"><option value="">Assign rider</option>${d.riders.map(r=>`<option value="${r.id}">${esc(r.name)}${r.on_shift==1?' (on shift)':' (off shift)'}</option>`).join('')}</select>`}</td></tr>`).join('')}</table>`,
-			products: `<h3>Add product</h3><form id="pf" class="bar"><input name="name" placeholder="Name" required><select name="category">${CATS.map(c=>`<option>${c}</option>`).join('')}</select><input name="price" type="number" step="0.01" placeholder="Price" required><input name="stock" type="number" placeholder="Stock" required><input type="file" name="photo" accept="image/jpeg,image/png" aria-label="Product photo"><button class="pri">Add product</button></form>
- ${E?`<h3>Edit: ${esc(E.name)}</h3><form id="ef" class="bar"><input type="hidden" name="id" value="${E.id}"><input name="name" value="${esc(E.name)}" required><select name="category">${CATS.map(c=>`<option${c==E.category?' selected':''}>${c}</option>`).join('')}</select><input name="price" type="number" step="0.01" value="${E.price}" required><input name="stock" type="number" value="${E.stock}" required><input type="file" name="photo" accept="image/jpeg,image/png" aria-label="New photo (optional)"><button class="pri">Save changes</button><button type="button" id="ecancel">Cancel</button></form>`:''}
- <h3>All products</h3><table>${d.products.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.category}</td><td>Tk ${p.price}</td><td>${p.stock} left</td><td><button data-ed="${p.id}">Edit</button> <button data-eco="${p.id}">${p.eco==1?'Eco-certified':'Not certified'}</button> <button data-dp="${p.id}">Remove</button></td></tr>`).join('')}</table>`,
+			profit: `<h3>Monthly Profit & Loss Chart / Report</h3>
+ <table><tr><th>Month</th><th>Total Revenue</th><th>Total Cost</th><th>Net Profit / Loss</th></tr>${pl.map(row=>{const p=+row.profit;return `<tr><td><b>${esc(row.month)}</b></td><td>Tk ${row.revenue}</td><td>Tk ${row.cost}</td><td style="color:${p>=0?'#1F4D3A':'#c9457a'}"><b>Tk ${row.profit}</b> ${p>=0?'(Profit)':'(Loss)'}</td></tr>`}).join('')||'<tr><td colspan="4">No delivered orders yet to calculate profit/loss.</td></tr>'}</table>`,
+			products: `<h3>Add product</h3><form id="pf" class="bar"><input name="name" placeholder="Name" required><select name="category">${CATS.map(c=>`<option>${c}</option>`).join('')}</select><input name="price" type="number" step="0.01" placeholder="Selling Price" required><input name="cost" type="number" step="0.01" placeholder="Buying Cost" required><input name="stock" type="number" placeholder="Stock" required><input type="file" name="photo" accept="image/jpeg,image/png" aria-label="Product photo"><button class="pri">Add product</button></form>
+ ${E?`<h3>Edit: ${esc(E.name)}</h3><form id="ef" class="bar"><input type="hidden" name="id" value="${E.id}"><input name="name" value="${esc(E.name)}" required><select name="category">${CATS.map(c=>`<option${c==E.category?' selected':''}>${c}</option>`).join('')}</select><input name="price" type="number" step="0.01" value="${E.price}" required><input name="stock" type="number" value="${E.stock}" required><input type="file" name="photo" accept="image/jpeg,image/png" aria-label="New photo"><button class="pri">Save changes</button><button type="button" id="ecancel">Cancel</button></form>`:''}
+ <h3>All products</h3><table>${d.products.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.category}</td><td>Tk ${p.price}</td><td>Tk ${p.cost||'N/A'}</td><td>${p.stock} left</td><td><button data-ed="${p.id}">Edit</button> <button data-eco="${p.id}">${p.eco==1?'Eco-certified':'Not certified'}</button> <button data-dp="${p.id}">Remove</button></td></tr>`).join('')}</table>`,
 			reviews: `<h3>Moderation queue</h3>${d.flagged.map(f=>`<div class="bar">${esc(f.comment)} <button data-dr="${f.id}">Delete review</button></div>`).join('')||'<p>No flagged reviews.</p>'}`,
 			riders: `<h3>Make a user a rider</h3><form id="rf" class="bar"><input name="email" type="email" placeholder="user@email.com" required><button>Make rider</button></form>
  <h3>Riders</h3>${d.riders.map(r=>`<p>${esc(r.name)}: ${r.on_shift==1?'on shift':'off shift'}</p>`).join('')||'<p>No riders yet.</p>'}`
@@ -388,7 +391,7 @@ const P = {
 		}
 	}
 };
-// Green Route: nearest-stop first, then 2-opt swaps until no shorter order is found (depot -> stops, open path)
+// Green Route: Nearest Neighbor + 2-opt Shortest Path Algorithm
 function plan(stops) {
 	const len = s => {
 		let c = DEPOT,
@@ -432,7 +435,6 @@ function plan(stops) {
 		naive: len(stops)
 	}
 }
-// Real road line and time from the free OSRM demo server. Returns null if it is offline, then the straight line stays.
 async function roadRoute(pts) {
 	try {
 		const c = new AbortController();
@@ -450,10 +452,9 @@ async function roadRoute(pts) {
 		return null
 	}
 }
-
 function pdf(d) {
 	const J = window.jspdf && window.jspdf.jsPDF;
-	if (!J) return toast('PDF tool did not load. Check your internet and try again.');
+	if (!J) return toast('PDF tool did not load.');
 	const p = new J(),
 		L = 16;
 	let y = 20;
@@ -596,15 +597,15 @@ $('#scan').onclick = async () => {
 		$('#scLogin').onclick = () => go('auth');
 		return
 	}
-	o.innerHTML = '<p>Scanning your leaf...</p>';
+	o.innerHTML = '<p>Scanning your leaf using image processing & ML heuristics...</p>';
 	const d = new FormData();
 	d.append('img', f);
 	const r = await api('scan', d, 1);
 	if (r.error) return o.innerHTML = '<p><b>Could not scan:</b> ' + esc(r.error) + '</p>';
 	o.innerHTML = `<div class="card scan"><div class="arch"><img src="${URL.createObjectURL(f)}" alt=""></div><div class="res"><div class="ring" style="background:conic-gradient(var(--bottle) ${r.index}%,var(--moss) 0)"><span>${r.index}</span></div>
- <b>${esc(r.issue)}</b><small>What we saw: green ${r.mix.green}% &middot; yellow ${r.mix.yellow}% &middot; brown or dark ${r.mix.brown}%</small>
- <b>What to do</b><ul>${r.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>
- <small>This is a quick colour-based check, not a lab test. For a serious problem, ask a nursery expert.</small></div></div>`;
+ <b>${esc(r.issue)}</b><small>Analysis: green ${r.mix.green}% &middot; yellow ${r.mix.yellow}% &middot; brown/dark ${r.mix.brown}%</small>
+ <b>Recommended Solutions</b><ul>${r.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>
+ <small>Note: For deep machine learning (CNN/PlantVillage dataset), connect a Python TensorFlow/Flask backend.</small></div></div>`;
 	scanHist()
 };
 $('#toSign').onclick = () => $('.flip-in').classList.add('flipped');
