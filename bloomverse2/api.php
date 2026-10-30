@@ -107,7 +107,6 @@ function need($role = null)
     }
 }
 if (empty($_SESSION["setup"])) {
-    // one-time database checks, once per browser session instead of on every request
     if (!q("SHOW COLUMNS FROM users LIKE 'on_shift'")->fetch()) {
         q("ALTER TABLE users ADD on_shift TINYINT DEFAULT 0");
     }
@@ -116,6 +115,9 @@ if (empty($_SESSION["setup"])) {
     }
     if (!q("SHOW COLUMNS FROM products LIKE 'active'")->fetch()) {
         q("ALTER TABLE products ADD active TINYINT DEFAULT 1");
+    }
+    if (!q("SHOW COLUMNS FROM products LIKE 'cost'")->fetch()) {
+        q("ALTER TABLE products ADD cost DECIMAL(8,2) DEFAULT 100.00");
     }
     if (!q("SELECT 1 FROM users WHERE role='admin'")->fetch()) {
         q(
@@ -561,6 +563,9 @@ switch ($a) {
             "stats" => q(
                 "SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM orders) orders,(SELECT IFNULL(SUM(total),0) FROM orders) revenue,(SELECT COUNT(*) FROM swap_posts) swaps"
             )->fetch(),
+            "profit_loss" => q(
+                "SELECT DATE_FORMAT(o.created, '%Y-%m') as month, SUM(i.qty * i.price) as revenue, SUM(i.qty * p.cost) as cost, SUM(i.qty * (i.price - p.cost)) as profit FROM orders o JOIN order_items i ON i.order_id=o.id JOIN products p ON p.id=i.product_id WHERE o.status='Delivered' GROUP BY month ORDER BY month DESC LIMIT 6"
+            )->fetchAll(),
             "orders" => q(
                 "SELECT o.id,o.cust_name,o.phone,o.address,o.area,o.total,o.status,o.rider_id FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 20"
             )->fetchAll(),
@@ -571,7 +576,7 @@ switch ($a) {
                 "SELECT id,comment FROM reviews WHERE flagged=1"
             )->fetchAll(),
             "products" => q(
-                "SELECT id,name,category,price,stock,eco FROM products WHERE active=1 ORDER BY id"
+                "SELECT id,name,category,price,cost,stock,eco FROM products WHERE active=1 ORDER BY id"
             )->fetchAll(),
         ]);
     case "a_assign":
@@ -623,10 +628,12 @@ switch ($a) {
         if ($has && ($e = pimg_check($f))) {
             out(["error" => $e]);
         }
-        q("INSERT INTO products(name,category,price,stock) VALUES(?,?,?,?)", [
+        $cost = is_numeric($in["cost"] ?? null) ? $in["cost"] : ($in["price"] * 0.6);
+        q("INSERT INTO products(name,category,price,cost,stock) VALUES(?,?,?,?,?)", [
             trim($in["name"]),
             $in["category"],
             $in["price"],
+            $cost,
             $in["stock"],
         ]);
         $pid = $db->lastInsertId();
